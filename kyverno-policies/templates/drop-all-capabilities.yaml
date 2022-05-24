@@ -1,0 +1,43 @@
+{{-  $policyName := "drop-all-capabilities" -}}
+
+{{- if .Values.dropAllCapabilities.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: {{ $policyName }}
+  annotations:
+    "policies.kyverno.io/title": "Drop All Capabilities"
+    "policies.kyverno.io/description": You should drop all capabilities and then add only the required ones for your container to function.
+spec:
+  validationFailureAction: {{ .Values.validationFailureAction }}
+  rules:
+    - name: {{ $policyName }}
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces: {{- toYaml .Values.namespaces | nindent 14 }}
+      validate:
+        message: You should drop all capabilities and then add only the required ones for your container to function.
+        pattern:
+          metadata:
+            <(annotations):
+              "X(kyverno.haff.xyz/ignore-{{ $policyName }})": "?*"
+          spec:
+            containers:
+              - securityContext:
+                  capabilities:
+                    =(drop):
+                      - all
+            =(initContainers):
+              - securityContext:
+                  capabilities:
+                    =(drop):
+                      - all
+            =(ephemeralContainers):
+              - securityContext:
+                  capabilities:
+                    =(drop):
+                      - all
+{{- end -}}

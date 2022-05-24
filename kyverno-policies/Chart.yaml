@@ -1,0 +1,7 @@
+apiVersion: v2
+name: kyverno-policies
+description: My very useful kyverno policies so I never forget what to set sensible defaults
+
+type: application
+version: 0.1.0
+appVersion: "0.0.1"

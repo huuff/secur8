@@ -1,0 +1,39 @@
+{{-  $policyName := "dont-run-privileged-containers" -}}
+
+{{- if .Values.dontRunPrivilegedContainers.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: {{ $policyName }}
+  annotations:
+    "policies.kyverno.io/title": "Don't Run Privileged Containers"
+    "policies.kyverno.io/description": |
+      This gives full privileges and capabilities over the host to the pod. This makes a compromise of the pod incredibly dangerous for the host
+spec:
+  validationFailureAction: {{ .Values.validationFailureAction }}
+  rules:
+    - name: {{ $policyName }}
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces: {{- toYaml .Values.namespaces | nindent 14 }}
+      validate:
+        message: "`securityContext.privileged` should be `false`"
+        pattern:
+          metadata:
+            <(annotations):
+              "X(kyverno.haff.xyz/ignore-{{ $policyName }})": "?*"
+          spec:
+            containers:
+              - =(securityContext):
+                  =(privileged): false
+            =(initContainers):
+              - =(securityContext):
+                  =(privileged): false
+            =(ephemeralContainers):
+              - =(securityContext):
+                  =(privileged): false
+
+{{- end -}}

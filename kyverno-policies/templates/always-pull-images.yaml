@@ -1,0 +1,38 @@
+{{-  $policyName := "always-pull-images" -}}
+
+{{- if .Values.alwaysPullImages.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: {{ $policyName }}
+  annotations:
+    "policies.kyverno.io/title": "Always Pull Images"
+    "policies.kyverno.io/description": |
+      When images are pulled, they are stored in the node cache and reused for any subsequent uses. This has several dangers
+      * A compromised node will make these images available to the attacker
+      * If the image to which the layer points changes for example to provide security updates, these changes won't be picked up until the cached image expires
+      * Getting the image bypasses the registry authorization mechanisms, so an attacker can start a pod with that image without appropriate credentials
+spec:
+  validationFailureAction: {{ .Values.validationFailureAction }}
+  rules:
+    - name: {{ $policyName }}
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces: {{- toYaml .Values.namespaces | nindent 14 }}
+      validate:
+        message: "`imagePullPolicy` should be Always"
+        pattern:
+          =(metadata):
+            <(annotations):
+              "X(kyverno.haff.xyz/ignore-{{ $policyName }})": "*"
+          spec:
+            containers:
+              - imagePullPolicy: Always
+            =(initContainers):
+              - imagePullPolicy: Always
+            =(ephemeralContainers):
+              - imagePullPolicy: Always
+{{- end -}}

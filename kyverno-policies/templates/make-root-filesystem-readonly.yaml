@@ -1,0 +1,38 @@
+{{-  $policyName := "make-root-filesystem-readonly" -}}
+
+{{- if .Values.makeRootFilesystemReadonly.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: {{ $policyName }}
+  annotations:
+    "policies.kyverno.io/title": "Make Root Filesystem Read-Only"
+    "policies.kyverno.io/description": |
+      If an intruder manages to compromise the container, their power to inflict any damage will be really diminished if they can't make any changes to the filesystem.
+spec:
+  validationFailureAction: {{ .Values.validationFailureAction }}
+  rules:
+    - name: {{ $policyName }}
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces: {{- toYaml .Values.namespaces | nindent 14 }}
+      validate:
+        message: "`readOnlyRootFilesystem` should be `true`."
+        pattern:
+          metadata:
+            <(annotations):
+              "X(kyverno.haff.xyz/ignore-{{ $policyName }})": "?*"
+          spec:
+            containers:
+              - securityContext:
+                  readOnlyRootFilesystem: true
+            =(initContainers):
+              - securityContext:
+                  readOnlyRootFilesystem: true
+            =(ephemeralContainers):
+              - securityContext:
+                  readOnlyRootFilesystem: true
+{{- end -}}

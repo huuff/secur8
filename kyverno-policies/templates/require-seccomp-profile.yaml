@@ -1,0 +1,31 @@
+{{-  $policyName := "require-seccomp-profile" -}}
+
+{{- if .Values.alwaysPullImages.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: {{ $policyName }}
+  annotations:
+    "policies.kyverno.io/title": "Require Seccomp Profile"
+    "policies.kyverno.io/description": At least the `RuntimeDefault` profile should be appropriate for most applications
+spec:
+  validationFailureAction: {{ .Values.validationFailureAction }}
+  rules:
+    - name: {{ $policyName }}
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces: {{- toYaml .Values.namespaces | nindent 14 }}
+      validate:
+        message: Every container should have a `seccompProfile`
+        pattern:
+          metadata:
+            <(annotations):
+              "X(kyverno.haff.xyz/ignore-{{ $policyName }})": "?*"
+          spec:
+            securityContext:
+                seccompProfile:
+                  type: "*"
+{{- end -}}

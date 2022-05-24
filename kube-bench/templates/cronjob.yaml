@@ -1,0 +1,143 @@
+{{- $reportDir := "/report" }}
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .Values.historyLimit }}
+  failedJobsHistoryLimit: {{ .Values.historyLimit }}
+  jobTemplate:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      template:
+        spec:
+          hostPID: true
+          containers:
+            - name: {{ .Release.Name }}
+              image: aquasec/kube-bench:v{{ .Chart.AppVersion }}
+              {{- if .Values.gotify.enabled }}
+              command:
+                - "sh"
+                - "-c"
+                - "kube-bench > {{$reportDir}}/output"
+              {{- else }}
+              command: ["kube-bench"]
+              {{- end }}
+              volumeMounts:
+                - name: var-lib-etcd
+                  mountPath: /var/lib/etcd
+                  readOnly: true
+                - name: var-lib-kubelet
+                  mountPath: /var/lib/kubelet
+                  readOnly: true
+                - name: var-lib-kube-scheduler
+                  mountPath: /var/lib/kube-scheduler
+                  readOnly: true
+                - name: var-lib-kube-controller-manager
+                  mountPath: /var/lib/kube-controller-manager
+                  readOnly: true
+                - name: etc-systemd
+                  mountPath: /etc/systemd
+                  readOnly: true
+                - name: lib-systemd
+                  mountPath: /lib/systemd/
+                  readOnly: true
+                - name: srv-kubernetes
+                  mountPath: /srv/kubernetes/
+                  readOnly: true
+                - name: etc-kubernetes
+                  mountPath: /etc/kubernetes
+                  readOnly: true
+                  # /usr/local/mount-from-host/bin is mounted to access kubectl / kubelet, for auto-detecting the Kubernetes version.
+                  # You can omit this mount if you specify --version as part of the command.
+                - name: usr-bin
+                  mountPath: /usr/local/mount-from-host/bin
+                  readOnly: true
+                - name: etc-cni-netd
+                  mountPath: /etc/cni/net.d/
+                  readOnly: true
+                - name: opt-cni-bin
+                  mountPath: /opt/cni/bin/
+                  readOnly: true
+            {{- if .Values.gotify.enabled }}
+                - name: report
+                  mountPath: {{$reportDir}}
+            {{- end }}
+            {{- if .Values.gotify.enabled }}
+            - name: gotifyer
+              image: alpine/curl@{{ .Values.gotify.digest }}
+              volumeMounts:
+                - name: report
+                  mountPath: {{$reportDir}}
+                  readOnly: true
+                - name: gotify-token
+                  mountPath: /secret
+                  readOnly: true
+              command:
+                - "sh"
+                - "-c"
+                - |
+                  until [ -s {{$reportDir}}/output ]; do
+                    sleep 1
+                  done
+
+                  ALERTS=$(cat {{$reportDir}}/output | grep -F '[FAIL]')
+                  if [ ! -z "$ALERTS" ]; then
+                    curl "{{ .Values.gotify.url }}/message?token=$(cat /secret/token)" \
+                        -F "title=kube-bench report" \
+                        -F "message=$ALERTS"
+                  fi
+
+            {{- end }}
+          restartPolicy: Never
+          volumes:
+            - name: var-lib-etcd
+              hostPath:
+                path: "/var/lib/etcd"
+            - name: var-lib-kubelet
+              hostPath:
+                path: "/var/lib/kubelet"
+            - name: var-lib-kube-scheduler
+              hostPath:
+                path: "/var/lib/kube-scheduler"
+            - name: var-lib-kube-controller-manager
+              hostPath:
+                path: "/var/lib/kube-controller-manager"
+            - name: etc-systemd
+              hostPath:
+                path: "/etc/systemd"
+            - name: lib-systemd
+              hostPath:
+                path: "/lib/systemd"
+            - name: srv-kubernetes
+              hostPath:
+                path: "/srv/kubernetes"
+            - name: etc-kubernetes
+              hostPath:
+                path: "/etc/kubernetes"
+            - name: usr-bin
+              hostPath:
+                path: "/usr/bin"
+            - name: etc-cni-netd
+              hostPath:
+                path: "/etc/cni/net.d/"
+            - name: opt-cni-bin
+              hostPath:
+                path: "/opt/cni/bin/"
+          {{- if .Values.gotify.enabled }}
+            - name: report
+              emptyDir: {}
+            - name: gotify-token
+              secret:
+                secretName: {{ .Values.gotify.token.secretName }}
+                optional: false
+                items:
+                  - key: {{ .Values.gotify.token.keyName }}
+                    path: token
+          {{- end }}
+

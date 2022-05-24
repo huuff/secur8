@@ -1,0 +1,73 @@
+{{ $reportDir := "/report" }}
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .Values.historyLimit }}
+  failedJobsHistoryLimit: {{ .Values.historyLimit }}
+  jobTemplate:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      template:
+        metadata:
+          labels:
+            app: {{ .Release.Name }}
+        spec:
+          containers:
+            - name: kube-hunter
+              image: aquasec/kube-hunter:{{ .Chart.AppVersion }}
+              {{- if .Values.gotify.enabled }}
+              command:
+                - "sh"
+                - "-c"
+                - "kube-hunter --pod --cidr={{ .Values.cidrRange }} --report=yaml > {{$reportDir}}/output"
+              {{- else }}
+              command: ["kube-hunter"]
+              args: 
+                - "--pod"
+                - "--cidr={{ .Values.cidrRange }}"
+              {{- end }}
+              {{- if .Values.gotify.enabled }}
+              volumeMounts:
+                - name: report
+                  mountPath: {{$reportDir}}
+              {{- end }}
+            {{- if .Values.gotify.enabled }}
+            - name: gotifyer
+              image: alpine/curl@{{ .Values.gotify.digest }}
+              volumeMounts:
+                - name: report
+                  mountPath: {{$reportDir}}
+                  readOnly: true
+                - name: gotify-token
+                  mountPath: /secret
+                  readOnly: true
+              command:
+                - "sh"
+                - "-c"
+                - |
+                  until [ -s {{$reportDir}}/output ]; do
+                    sleep 1
+                  done
+                  curl "{{ .Values.gotify.url }}/message?token=$(cat /secret/token)" -F "title=kube-hunter report" -F "message=$(cat {{$reportDir}}/output |  sed -ne '/vulnerabilities:/,$ p')"
+            {{- end }}
+          restartPolicy: Never
+          {{- if .Values.gotify.enabled }}
+          volumes:
+            - name: report
+              emptyDir: {}
+            - name: gotify-token
+              secret:
+                secretName: {{ .Values.gotify.token.secretName }}
+                optional: false
+                items:
+                  - key: {{ .Values.gotify.token.keyName }}
+                    path: token
+          {{- end }}
+
+

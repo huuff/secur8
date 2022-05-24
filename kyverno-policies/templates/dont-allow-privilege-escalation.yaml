@@ -1,0 +1,38 @@
+{{-  $policyName := "dont-allow-privilege-escalation" -}}
+
+{{- if .Values.dontAllowPrivilegeEscalation.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: {{ $policyName }}
+  annotations:
+    "policies.kyverno.io/title": "Don't Allow Privilege Escalation"
+    "policies.kyverno.io/description": |
+      If the user namespace is shared between the host and the container, escalating privileges in the container equals escalating privileges on the host. Compounded with a container escape vulnerability, this setting can be devastating.
+spec:
+  validationFailureAction: {{ .Values.validationFailureAction }}
+  rules:
+    - name: {{ $policyName }}
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces: {{- toYaml .Values.namespaces | nindent 14 }}
+      validate:
+        message: "`allowPrivilegeEscalation` should be `false`"
+        pattern:
+          metadata:
+            <(annotations):
+              "X(kyverno.haff.xyz/ignore-{{ $policyName }})": "?*"
+          spec:
+            containers:
+              - securityContext:
+                  allowPrivilegeEscalation: false
+            =(initContainers):
+              - securityContext:
+                  allowPrivilegeEscalation: false
+            =(ephemeralContainers):
+              - securityContext:
+                  allowPrivilegeEscalation: false
+{{- end -}}

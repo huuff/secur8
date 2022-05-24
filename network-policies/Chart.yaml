@@ -1,0 +1,7 @@
+apiVersion: v2
+name: network-policies
+description: Decent default network policies, but actually I think it's just deny all
+
+type: application
+version: 0.1.0
+appVersion: "0.0.1"

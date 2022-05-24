@@ -1,0 +1,31 @@
+{{-  $policyName := "dont-use-host-path-volumes" -}}
+
+{{- if .Values.dontUseHostPathVolumes.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: {{ $policyName }}
+  annotations:
+    "policies.kyverno.io/title": "Don't Use hostPath Volumes"
+    "policies.kyverno.io/description": |
+      A symlink in a `hostPath` volume to outside of it can give a compromised volume access to the host's root filesystem
+spec:
+  validationFailureAction: {{ .Values.validationFailureAction }}
+  rules:
+    - name: {{ $policyName }}
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces: {{- toYaml .Values.namespaces | nindent 14 }}
+      validate:
+        message: Don't use any `hostPath` volumes. 
+        pattern:
+          metadata:
+            <(annotations):
+              "X(kyverno.haff.xyz/ignore-{{ $policyName }})": "?*"
+          spec:
+            =(volumes):
+              - X(hostPath): "?*"
+{{- end -}}

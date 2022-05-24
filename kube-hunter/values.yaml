@@ -1,0 +1,10 @@
+schedule: "@daily"
+historyLimit: 1
+cidrRange: "192.168.0.0/24"
+gotify:
+  enabled: false
+  url: ""
+  token:
+    secretName: ""
+    keyName: ""
+  digest: "sha256:81372de8c566f2d731bde924bed45230018e6d7c21d051c15e283eb8e06dfa2d"

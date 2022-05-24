@@ -1,0 +1,57 @@
+repositories:
+  - name: kyverno
+    url: https://kyverno.github.io/kyverno/
+  - name: falcosecurity
+    url: https://falcosecurity.github.io/charts
+  - name: devopstales
+    url: https://devopstales.github.io/helm-charts
+
+releases:
+  - name: kube-bench
+    chart: ./kube-bench
+    namespace: security
+    set:
+      - name: "gotify.enabled"
+        value: true
+      - name: "gotify.url"
+        value: "gotify.default.svc.cluster.local:8080"
+      - name: "gotify.token.secretName"
+        value: "gotify-security-token"
+      - name: "gotify.token.keyName"
+        value: "token"
+  - name: kyverno
+    chart: kyverno/kyverno
+    namespace: security
+  - name: kyverno-policies
+    chart: ./kyverno-policies
+  - name: falco
+    chart: falcosecurity/falco
+    namespace: security
+  - name: deny-all-network-policy
+    chart: ./network-policies
+  # Remember to label the namespaces you want to scan with trivy-scan=true
+  - name: trivy-operator
+    chart: devopstales/trivy-operator
+    namespace: security
+    set:
+      - name: "persistence.enabled"
+        value: false
+
+      
+# Disabled as I don't find it very useful...
+# It'll only tell you the vulnerabilities of a compromised pod
+# if you run it as an unsecured pod... but then, why would you run it?
+# Perhaps I should run it in a mode different to pod mode
+
+#- name: kube-hunter
+#  chart: ./kube-hunter
+#  set:
+#    - name: "gotify.enabled"
+#      value: true
+#    - name: "gotify.url"
+#      value: "gotify.default.svc.cluster.local:8080"
+#    - name: "gotify.token.secretName"
+#      value: "gotify-security-token"
+#    - name: "gotify.token.keyName"
+#      value: "token"
+#  namespace: security

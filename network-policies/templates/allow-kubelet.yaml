@@ -1,0 +1,17 @@
+{{- range .Values.namespaces }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kubelet
+  namespace: {{ . | quote }}
+spec:
+  podSelector: {}
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: {{ $.Values.clusterCIDR }}
+  egress:
+    - to:
+        - ipBlock:
+            cidr: {{ $.Values.clusterCIDR }}
+{{- end }}

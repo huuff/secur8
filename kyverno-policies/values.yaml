@@ -1,0 +1,37 @@
+namespaces:
+  - default
+
+validationFailureAction: "audit"
+
+alwaysPullImages:
+  enabled: true
+
+dontAllowPrivilegeEscalation:
+  enabled: true
+
+dontAutomountServiceAccountToken:
+  enabled: true
+
+dontRunAsRoot:
+  enabled: true
+
+makeRootFilesystemReadonly:
+  enabled: true
+
+requireRequestsAndLimits:
+  enabled: true
+
+dontUseHostNamespaces:
+  enabled: true
+
+dontRunPrivilegedContainers:
+  enabled: true
+
+dontUseHostPathVolumes:
+  enabled: true
+
+dropAllCapabilities:
+  enabled: true
+
+requireSeccompProfile:
+  enabled: true

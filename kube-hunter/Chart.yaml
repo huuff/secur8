@@ -1,0 +1,7 @@
+apiVersion: v2
+name: kube-hunter
+description: A cronjob for kube-hunter
+
+type: application
+version: 0.1.0
+appVersion: "0.6.8"

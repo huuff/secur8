@@ -1,0 +1,32 @@
+{{-  $policyName := "dont-use-host-namespaces" -}}
+
+{{- if .Values.dontUseHostNamespaces.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: {{ $policyName }}
+  annotations:
+    "policies.kyverno.io/title": "Don't Use Host's Namespaces"
+    "policies.kyverno.io/description": |
+      These settings break the isolation between the pod and the host. Using them would mean that a compromised pod can compromise the whole host.
+spec:
+  validationFailureAction: {{ .Values.validationFailureAction }}
+  rules:
+    - name: {{ $policyName }}
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces: {{- toYaml .Values.namespaces | nindent 14 }}
+      validate:
+        message: "`hostPID`, `hostPID` and `hostIPC` should be `false`"
+        pattern:
+          metadata:
+            <(annotations):
+              "X(kyverno.haff.xyz/ignore-{{ $policyName }})": "?*"
+          spec:
+            =(hostPID): false
+            =(hostNetwork): false
+            =(hostIPC): false
+{{- end -}}
