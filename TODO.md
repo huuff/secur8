@@ -6,4 +6,4 @@
   * `falco` reporting
   * `trivy` reporting
   * Reporting on failed kyverno policies. Kyverno already saves reports of the `PolicyReport` kind (`k get policyreports`). Automate sending these to Apprise (likely using a controller)
-
+* `kube-hunter` doesn't seem very useful in its state, since running it as a pod only gives the vulnerabilities you'd be exposed to if a pod gets compromised. Of course you could secure the pod, but what's the point? It only tells you that that pod has no vulnerabilities, and gives you nothing about the rest of the system. See if I can run it to check for vulnerabilities as an external attacker.
